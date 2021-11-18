@@ -1,9 +1,42 @@
+//! A Simple Crate to Extract Image Details from a Docker Registry
+//!
+//! This crate provides a simple interface to retrieve all the images
+//! stored on a private registry, and retrieve the details per image as
+//! needed.
+//!
+//! Example:
+//! ```
+//! use aduana::*;
+//!
+//! #[tokio::main]
+//! pub async fn main() -> Result<(), AduanaError> {
+//!
+//!     // Create an inspector instance pointing to your registry
+//!     let inspector = AduanaInspector::new("http://localhost:5000");
+//!     // Retrieve a list of images on the registry
+//!     let images = inspector.images().await?;
+//!
+//!     // Loop over the retrieved images
+//!     for image in images {
+//!         // For each tag of an image
+//!         for tag in image.tags() {
+//!             // Retrieve its details
+//!             let details = image.details(tag).await?;
+//!             println!("{:#?}", details);
+//!         }
+//!     }
+//! }
+//! ```
+
+mod registry;
+
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context, Result};
-use reqwest::header::ACCEPT;
-use serde::{Deserialize, Deserializer};
+use reqwest::{Certificate, Client, header::ACCEPT};
 use thiserror::Error;
+
+use registry::*;
 
 #[derive(Error, Debug)]
 pub enum AduanaError {
@@ -34,64 +67,11 @@ impl From<reqwest::Error> for AduanaError {
     }
 }
 
-fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Default + Deserialize<'de>,
-    D: Deserializer<'de>,
-{
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResponseCatalog {
-    repositories: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResponseImage {
-    name: String,
-    tags: Vec<String>,
-}
-
 #[derive(Debug, Clone)]
 pub struct AduanaImage<'a> {
     inspector: &'a AduanaInspector,
     name: String,
     tags: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResponseManifest {
-    config: ResponseConfig,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResponseConfig {
-    digest: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResponseConfigBlob {
-    architecture: String,
-    config: ConfigDetails,
-    created: String,
-}
-
-#[derive(Default, Deserialize)]
-#[serde(default, rename_all = "PascalCase")]
-struct ConfigDetails {
-    pub user: Option<String>,
-    pub env: Vec<String>,
-    pub cmd: Vec<String>,
-    pub working_dir: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_default")]
-    pub labels: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -107,21 +87,38 @@ pub struct ImageDetails {
     pub created: String,
 }
 
+fn client(pem: &Option<Vec<u8>>) -> Result<Client, AduanaError> {
+    let mut builder = reqwest::Client::builder();
+
+    if let Some(bytes) = pem {
+        let cert = Certificate::from_pem(bytes).with_context(||"Failed to parse PEM certificate".to_string())?;
+        builder = builder.add_root_certificate(cert);
+    }
+
+    let client = builder.build().with_context(||"Failed to build client!")?;
+    println!("Client: {:#?}", &client);
+
+    Ok(client)
+}
+
 impl<'a> AduanaImage<'a> {
+    /// The name of an image
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// The tags of this image
     pub fn tags(&self) -> &[String] {
         &self.tags
     }
 
+    /// Retrieve the image details for a specific tag.
     pub async fn details(&self, tag: &str) -> Result<ImageDetails, AduanaError> {
         let url = format!(
             "{}/v2/{}/manifests/{}",
             &self.inspector.url, &self.name, tag
         );
-        let client = reqwest::Client::new();
+        let client = client(&self.inspector.cert)?;
         let response = client
             .get(&url)
             .header(
@@ -150,17 +147,23 @@ impl<'a> AduanaImage<'a> {
 
     async fn retrieve_blob(&self, digest: &str) -> Result<ResponseConfigBlob, AduanaError> {
         let url = format!("{}/v2/{}/blobs/{}", &self.inspector.url, &self.name, digest);
-        let client = reqwest::Client::new();
+        let client = client(&self.inspector.cert)?;
         let response = client.get(&url).send().await?;
         let details: ResponseConfigBlob = response.json().await?;
         Ok(details)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AduanaInspector {
     url: String,
     cert: Option<Vec<u8>>,
+}
+
+impl std::fmt::Debug for AduanaInspector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AduanaInspector {{ url: {}, cert: {} }}", &self.url, self.cert.is_some())
+    }
 }
 
 impl AduanaInspector {
@@ -182,7 +185,8 @@ impl AduanaInspector {
 
     pub async fn images(&'_ self) -> Result<Vec<AduanaImage<'_>>, AduanaError> {
         let url = format!("{}/v2/_catalog", &self.url);
-        let response = reqwest::get(&url).await?;
+        let client = client(&self.cert)?;
+        let response = client.get(&url).send().await?;
 
         let mut images = Vec::new();
         let catalog: ResponseCatalog = response
@@ -203,7 +207,8 @@ impl AduanaInspector {
 
     async fn retrieve_image(&self, name: &str) -> Result<ResponseImage, AduanaError> {
         let url = format!("{}/v2/{}/tags/list", &self.url, name);
-        let response = reqwest::get(&url).await?;
+        let client = client(&self.cert)?;
+        let response = client.get(&url).send().await?;
         let image: ResponseImage = response.json().await?;
         Ok(image)
     }
@@ -211,6 +216,9 @@ impl AduanaInspector {
 
 #[cfg(test)]
 mod tests {
+
+    use std::fs::File;
+    use std::io::Read;
 
     use super::*;
 
@@ -232,6 +240,17 @@ mod tests {
                 println!("{:#?}", details);
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_cert() {
+        let mut pem = Vec::new();
+        let mut file = File::open("certs/registry.crt").unwrap();
+        file.read_to_end(&mut pem).unwrap();
+
+        let inspector = AduanaInspector::new("https://127.0.0.1:5000").with_cert(pem);
+        let images = inspector.images().await.unwrap();
+        println!("{:?}", images);
     }
 
     #[tokio::test]
