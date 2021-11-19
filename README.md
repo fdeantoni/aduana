@@ -18,10 +18,10 @@ Create a self signed certificate:
 $ mkdir -p certs
 $ openssl req \
   -newkey rsa:4096 -nodes -sha256 -keyout certs/registry.key \
-  -addext "subjectAltName = IP:127.0.0.1" \
+  -addext "subjectAltName = DNS:localhost" \
   -x509 -days 3650 -out certs/registry.crt
 ```
-For CN you can use `localhost`.
+For CN use `localhost`.
 
 To test things out, you can run a local docker registry as follows:
 ```sh

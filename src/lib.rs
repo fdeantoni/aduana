@@ -48,6 +48,7 @@ pub enum AduanaError {
 
 impl From<reqwest::Error> for AduanaError {
     fn from(error: reqwest::Error) -> Self {
+        log::error!("Reqwest error: {:?}", &error);
         if error.is_connect() || error.is_builder() {
             let url = error
                 .url()
@@ -222,6 +223,13 @@ mod tests {
 
     use super::*;
 
+    fn init() {
+        if std::env::var("RUST_LOG").is_err() {
+            std::env::set_var("RUST_LOG", "info,aduana=trace");
+        }
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[tokio::test]
     async fn test_images() {
         let inspector = AduanaInspector::new("http://localhost:5000");
@@ -244,11 +252,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_cert() {
+        init();
+
         let mut pem = Vec::new();
         let mut file = File::open("certs/registry.crt").unwrap();
         file.read_to_end(&mut pem).unwrap();
 
-        let inspector = AduanaInspector::new("https://127.0.0.1:5000").with_cert(pem);
+        let inspector = AduanaInspector::new("https://localhost:5000").with_cert(pem);
         let images = inspector.images().await.unwrap();
         println!("{:?}", images);
     }
