@@ -1,6 +1,7 @@
 # Aduana
 
-A simple reqwest based crate to gather image info from a private docker registry.
+A very simple reqwest based crate to gather image info from a private docker
+registry.
 
 This crate provides a simple interface to retrieve all the images stored on a
 private registry, and retrieve the details per image as needed. To use it,
@@ -13,15 +14,7 @@ aduana = "0.1"
 
 ## Local Registry For Development and Testing
 
-Create a self signed certificate:
-```bash
-$ mkdir -p certs
-$ openssl req \
-  -newkey rsa:4096 -nodes -sha256 -keyout certs/registry.key \
-  -addext "subjectAltName = IP:127.0.0.1" \
-  -x509 -days 3650 -out certs/registry.crt
-```
-For CN you can use `localhost`.
+Create a certificate for development. I would recommend using [mkcert](https://github.com/FiloSottile/mkcert).
 
 To test things out, you can run a local docker registry as follows:
 ```sh
@@ -48,4 +41,5 @@ For more info, see the [docker docs](https://docs.docker.com/registry/insecure/)
 
 For now this crate is only meant for use with a small local registry containing
 a limited set of images. It does not implement any filtering or pagination to
-collect all the tags each image has. Do not use it on very large repositories!
+collect all the tags each image has. Do not use it on very large repository
+you do not own as you will clobber it!

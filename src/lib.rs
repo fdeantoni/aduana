@@ -95,8 +95,7 @@ fn client(pem: &Option<Vec<u8>>) -> Result<Client, AduanaError> {
         builder = builder.add_root_certificate(cert);
     }
 
-    let client = builder.build().with_context(||"Failed to build client!")?;
-    println!("Client: {:#?}", &client);
+    let client = builder.build().with_context(||"Failed to build reqwest client!")?;
 
     Ok(client)
 }
@@ -224,14 +223,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_images() {
-        let inspector = AduanaInspector::new("http://localhost:5000");
+        let mut pem = Vec::new();
+        let mut file = File::open("certs/ca.crt").unwrap();
+        file.read_to_end(&mut pem).unwrap();
+
+        let inspector = AduanaInspector::new("https://localhost:5000").with_cert(pem);
         let images = inspector.images().await.unwrap();
         println!("{:#?}", images);
     }
 
     #[tokio::test]
     async fn test_details() {
-        let inspector = AduanaInspector::new("http://localhost:5000");
+        let mut pem = Vec::new();
+        let mut file = File::open("certs/ca.crt").unwrap();
+        file.read_to_end(&mut pem).unwrap();
+
+        let inspector = AduanaInspector::new("https://localhost:5000").with_cert(pem);
         let images = inspector.images().await.unwrap();
 
         for image in images {
@@ -240,17 +247,6 @@ mod tests {
                 println!("{:#?}", details);
             }
         }
-    }
-
-    #[tokio::test]
-    async fn test_cert() {
-        let mut pem = Vec::new();
-        let mut file = File::open("certs/registry.crt").unwrap();
-        file.read_to_end(&mut pem).unwrap();
-
-        let inspector = AduanaInspector::new("https://127.0.0.1:5000").with_cert(pem);
-        let images = inspector.images().await.unwrap();
-        println!("{:?}", images);
     }
 
     #[tokio::test]
