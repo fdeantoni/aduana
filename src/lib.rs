@@ -33,7 +33,7 @@ mod registry;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context, Result};
-use reqwest::{Certificate, Client, header::ACCEPT};
+use reqwest::{header::ACCEPT, Certificate, Client};
 use thiserror::Error;
 
 use registry::*;
@@ -91,11 +91,14 @@ fn client(pem: &Option<Vec<u8>>) -> Result<Client, AduanaError> {
     let mut builder = reqwest::Client::builder();
 
     if let Some(bytes) = pem {
-        let cert = Certificate::from_pem(bytes).with_context(||"Failed to parse PEM certificate".to_string())?;
+        let cert = Certificate::from_pem(bytes)
+            .with_context(|| "Failed to parse PEM certificate".to_string())?;
         builder = builder.add_root_certificate(cert);
     }
 
-    let client = builder.build().with_context(||"Failed to build reqwest client!")?;
+    let client = builder
+        .build()
+        .with_context(|| "Failed to build reqwest client!")?;
 
     Ok(client)
 }
@@ -161,7 +164,12 @@ pub struct AduanaInspector {
 
 impl std::fmt::Debug for AduanaInspector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AduanaInspector {{ url: {}, cert: {} }}", &self.url, self.cert.is_some())
+        write!(
+            f,
+            "AduanaInspector {{ url: {}, cert: {} }}",
+            &self.url,
+            self.cert.is_some()
+        )
     }
 }
 

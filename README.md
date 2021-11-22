@@ -11,6 +11,30 @@ add the following to your `Cargo.toml`:
 aduana = "0.1"
 ```
 
+An example:
+```rust
+use aduana::*;
+
+#[tokio::main]
+pub async fn main() -> Result<(), AduanaError> {
+
+    // Create an inspector instance pointing to your registry
+    let inspector = AduanaInspector::new("http://localhost:5000");
+    // Retrieve a list of images on the registry
+    let images = inspector.images().await?;
+
+    // Loop over the retrieved images
+    for image in images {
+        // For each tag of an image
+        for tag in image.tags() {
+            // Retrieve its details
+            let details = image.details(tag).await?;
+            println!("{:#?}", details);
+        }
+    }
+}
+```
+
 
 ## Local Registry For Development and Testing
 

@@ -2,6 +2,12 @@
 name = "aduana"
 version = "0.1.0"
 edition = "2021"
+authors = ["fdeantoni <fdeantoni@gmail.com>"]
+license = "Apache-2.0"
+keywords = ["docker", "registry"]
+description = "A simple crate to extract image info from a local docker registry."
+repository = "https://github.com/fdeantoni/aduana"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
