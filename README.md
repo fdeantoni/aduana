@@ -33,6 +33,8 @@ pub async fn main() -> Result<(), AduanaError> {
             println!("{:#?}", details);
         }
     }
+
+    Ok(())
 }
 ```
 

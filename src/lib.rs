@@ -5,7 +5,7 @@
 //! needed.
 //!
 //! Example:
-//! ```
+//! ```no_run
 //! use aduana::*;
 //!
 //! #[tokio::main]
@@ -25,6 +25,8 @@
 //!             println!("{:#?}", details);
 //!         }
 //!     }
+//!
+//!     Ok(())
 //! }
 //! ```
 
