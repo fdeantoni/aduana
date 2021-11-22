@@ -1,4 +1,5 @@
 # Aduana
+[![crates.io](https://buildstats.info/crate/aduana)](https://crates.io/crates/aduana) [![build](https://github.com/fdeantoni/aduana/actions/workflows/rust.yml/badge.svg)](https://github.com/fdeantoni/aduana/actions/workflows/rust.yml)
 
 A very simple reqwest based crate to gather image info from a private docker
 registry.
