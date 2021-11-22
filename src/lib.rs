@@ -230,6 +230,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore="requires a running local registry"]
     async fn test_images() {
         let mut pem = Vec::new();
         let mut file = File::open("certs/ca.crt").unwrap();
@@ -241,6 +242,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore="requires a running local registry"]
     async fn test_details() {
         let mut pem = Vec::new();
         let mut file = File::open("certs/ca.crt").unwrap();
